@@ -1,57 +1,62 @@
 package proof
 
 import (
-	"crypto/rand"
+	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
-// randomEthTrie generates a Ethereum trie structure with random values.
-// Returned is trie and an index of all created key-value pairs.
-func randomEthTrie(size int) (*trie.Trie, map[string]*kv) {
-	var t trie.Trie
-	vals := make(map[string]*kv)
-
-	// TODO XXX why is the below creating 200 keys that are build using not
-	// a random value but an incrementing value?
-	// https://github.com/ethereum/go-ethereum/blob/f5d89cdb72c1e82e9deb54754bef8dd20bf12591/trie/proof_test.go#L203
-
-	for i := byte(0); i < 100; i++ {
-		value := &kv{
-			k: common.LeftPadBytes([]byte{i}, 32),
-			v: []byte{i},
-		}
-		t.Update(value.k, value.v)
-		vals[string(value.k)] = value
-
-		value2 := &kv{
-			k: common.LeftPadBytes([]byte{i + 10}, 32),
-			v: []byte{i},
-		}
-		t.Update(value2.k, value2.v)
-		vals[string(value2.k)] = value2
+func TestEthTrie(t *testing.T) {
+	db := ethdb.NewMemDatabase()
+	tr, err := trie.New(common.BytesToHash(nil), trie.NewDatabase(db))
+	if err != nil {
+		t.Fatalf("cannot create an empty trie: %s", err)
 	}
-	for i := 0; i < size; i++ {
-		value := &kv{
-			k: randBytes(32),
-			v: randBytes(20),
+	t.Logf("empty trie root hash: %x", tr.Root())
+
+	items := []string{"a", "b", "c"}
+
+	for _, s := range items {
+		b := []byte(s)
+		tr.Update(b, b) // key == value
+		if err := tr.Prove(b, 0, db); err != nil {
+			t.Fatalf("cannot prove %q: %s", s, err)
 		}
-		t.Update(value.k, value.v)
-		vals[string(value.k)] = value
 	}
-	return &t, vals
-}
 
-type kv struct {
-	k []byte
-	v []byte
-}
-
-func randBytes(n int) []byte {
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		panic(err)
+	if hash, err := tr.Commit(nil); err != nil {
+		t.Fatalf("cannot commit: %s", err)
+	} else {
+		t.Logf("commit hash of the trie: %x", hash)
 	}
-	return b
+
+	//for _, s := range items {
+	//	b := []byte(s)
+	//	val, _, err := trie.VerifyProof(tr.Hash(), b, db)
+	//	if err != nil {
+	//		t.Fatalf("cannot verify proof: %s", err)
+	//	}
+	//	t.Logf("value of the key %q: %q", s, val)
+	//}
+
+	it := tr.NodeIterator(nil)
+	for {
+		if err := it.Error(); err != nil {
+			t.Fatalf("iterator failed: %s", err)
+		}
+
+		if it.Leaf() {
+			for i, p := range it.LeafProof() {
+				t.Logf("%x: leaf %q proof: %2d %x", it.Path(), it.LeafKey(), i, p)
+			}
+		}
+		t.Logf("%x: node hash: %x", it.Path(), it.Hash())
+
+		if !it.Next(true) {
+			break
+		}
+	}
+
 }
