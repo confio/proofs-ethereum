@@ -1,7 +1,6 @@
 package proof
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -41,7 +40,6 @@ func TestEthTrie(t *testing.T) {
 			if err != nil {
 				t.Fatalf("cannot create an empty trie: %s", err)
 			}
-			t.Logf("empty trie root hash: %x", tr.Root())
 
 			for _, s := range tc.items {
 				b := []byte(s)
@@ -54,7 +52,7 @@ func TestEthTrie(t *testing.T) {
 				t.Logf("commit hash of the trie: %X", hash)
 			}
 
-			val, path, err := ComputeProof(tr, []byte(tc.query))
+			proof, err := ComputeProof(tr, []byte(tc.query))
 			if tc.isError {
 				if err == nil {
 					t.Fatalf("Expected error, but was <nil>")
@@ -65,14 +63,21 @@ func TestEthTrie(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error: %+v", err)
 			}
-			if string(val) != tc.query {
-				t.Fatalf("invalid value: %s", string(val))
+			for _, p := range proof.Steps {
+				t.Logf("-> (%d) %s\n", p.Index, p.Step)
 			}
-			if len(path) != tc.numSteps {
-				t.Fatalf("Unexpected path length %d (expected %d)", len(path), tc.numSteps)
+
+			val := string(proof.Value)
+			if val != tc.query {
+				t.Fatalf("invalid value: %s", val)
 			}
-			for _, p := range path {
-				fmt.Printf("-> %s\n", p)
+			if len(proof.Steps) != tc.numSteps {
+				t.Fatalf("Unexpected path length %d (expected %d)", len(proof.Steps), tc.numSteps)
+			}
+
+			recovered := proof.RecoverKey()
+			if string(recovered) != tc.query {
+				t.Fatalf("Recovered key %s doesn't match query %s\n", string(recovered), tc.query)
 			}
 		})
 
