@@ -76,7 +76,6 @@ func ComputeProof(tr *trie.Trie, key []byte) (value []byte, path []PathStep, err
 			return child, path, nil
 		}
 	}
-
 	return val, path, nil
 }
 
