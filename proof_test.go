@@ -1,6 +1,7 @@
 package proof
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -39,6 +40,9 @@ func TestEthTrie(t *testing.T) {
 	}
 	if len(path) != 2 {
 		t.Fatalf("Unexpected path length")
+	}
+	for _, p := range path {
+		fmt.Printf("-> %s\n", p)
 	}
 
 	//for _, s := range items {

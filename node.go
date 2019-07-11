@@ -40,7 +40,7 @@ type (
 	}
 	shortNode struct {
 		Key   []byte
-		Val   node
+		Val   Link
 		flags nodeFlag
 	}
 	hashNode  []byte
@@ -117,7 +117,7 @@ func (n valueNode) fstring(ind string) string {
 	return fmt.Sprintf("%x ", []byte(n))
 }
 
-func mustDecodeNode(hash, buf []byte, cachegen uint16) node {
+func mustDecodeNode(hash, buf []byte, cachegen uint16) PathStep {
 	n, err := decodeNode(hash, buf, cachegen)
 	if err != nil {
 		panic(fmt.Sprintf("node %x: %v", hash, err))
@@ -126,7 +126,7 @@ func mustDecodeNode(hash, buf []byte, cachegen uint16) node {
 }
 
 // decodeNode parses the RLP encoding of a trie node.
-func decodeNode(hash, buf []byte, cachegen uint16) (node, error) {
+func decodeNode(hash, buf []byte, cachegen uint16) (PathStep, error) {
 	if len(buf) == 0 {
 		return nil, io.ErrUnexpectedEOF
 	}
@@ -146,7 +146,7 @@ func decodeNode(hash, buf []byte, cachegen uint16) (node, error) {
 	}
 }
 
-func decodeShort(hash, elems []byte, cachegen uint16) (node, error) {
+func decodeShort(hash, elems []byte, cachegen uint16) (*shortNode, error) {
 	kbuf, rest, err := rlp.SplitString(elems)
 	if err != nil {
 		return nil, err
@@ -189,7 +189,7 @@ func decodeFull(hash, elems []byte, cachegen uint16) (*fullNode, error) {
 
 const hashLen = len(common.Hash{})
 
-func decodeRef(buf []byte, cachegen uint16) (node, []byte, error) {
+func decodeRef(buf []byte, cachegen uint16) (Link, []byte, error) {
 	kind, val, rest, err := rlp.Split(buf)
 	if err != nil {
 		return nil, buf, err

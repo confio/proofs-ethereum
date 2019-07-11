@@ -8,11 +8,28 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 )
 
-type Node interface{}
+type PathStep interface {
+	node
+	isPathStep()
+}
+
+func (fullNode) isPathStep()  {}
+func (shortNode) isPathStep() {}
+
+// Seems like this can also be full/short node???
+// I only see hash/value Node in tests
+type Link interface {
+	node
+}
+
+// format is ProofStep - FullNode or ShortNode
+// child link either ValueNode or HashNode
+//  - hashNode links to next step
+//  - valueNode is the end
 
 // ComputeProof returns the proof value for a key in given trie. Returned path
 // is the way from the value to the root of the tree.
-func ComputeProof(tr *trie.Trie, key []byte) (value []byte, path []Node, err error) {
+func ComputeProof(tr *trie.Trie, key []byte) (value []byte, path []PathStep, err error) {
 	db := ethdb.NewMemDatabase()
 
 	val := tr.Get(key)
@@ -25,11 +42,8 @@ func ComputeProof(tr *trie.Trie, key []byte) (value []byte, path []Node, err err
 	}
 
 	rootHash := tr.Root()
+	fmt.Printf("Query: %X\n", key)
 	fmt.Printf("Root:  %X\n", rootHash)
-
-	for _, key := range db.Keys() {
-		fmt.Printf("  %X\n", key)
-	}
 
 	wantHash := rootHash
 	keyHex := keybytesToHex(key)
@@ -42,22 +56,24 @@ func ComputeProof(tr *trie.Trie, key []byte) (value []byte, path []Node, err err
 		if err != nil {
 			return nil, nil, fmt.Errorf("bad proof node %d: %v", i, err)
 		}
-		keyrest, cld := get(n, keyHex)
-		fmt.Printf("Got node %T cld %T\n", n, cld)
+		keyrest, child := get(n, keyHex)
+		fmt.Printf("Got node %T child %T\n", n, child)
 
-		if cld != nil {
-			path = append(path, cld)
-		}
-
-		switch cld := cld.(type) {
-		case nil:
+		if child == nil {
 			// The trie doesn't contain the key.
 			return nil, nil, fmt.Errorf("Key missing in proof")
+		}
+		path = append(path, n)
+
+		// both of these are hex
+		switch child := child.(type) {
 		case hashNode:
+			fmt.Printf("-> Following hash to %s\n", child)
 			keyHex = keyrest
-			copy(wantHash[:], cld)
+			copy(wantHash[:], child)
 		case valueNode:
-			return val, path, nil
+			fmt.Printf("-> Got value %s\n", child)
+			return child, path, nil
 		}
 	}
 
@@ -71,7 +87,8 @@ func ComputeProof(tr *trie.Trie, key []byte) (value []byte, path []Node, err err
 // 	Cache() (hashNode []byte, dirty bool)
 // }
 
-func get(tn Node, key []byte) ([]byte, Node) {
+func get(step PathStep, key []byte) ([]byte, Link) {
+	var tn Link = step
 	for {
 		switch n := tn.(type) {
 		case *shortNode:
