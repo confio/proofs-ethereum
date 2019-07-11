@@ -11,16 +11,19 @@ import (
 
 func TestEthTrie(t *testing.T) {
 	cases := map[string]struct {
-		items []string
-		query string
+		items    []string
+		query    string
+		numSteps int
 	}{
 		"two levels": {
-			items: []string{"a", "B", "7", "ASDF", "    000    ", "fooBAR"},
-			query: "fooBAR",
+			items:    []string{"a", "B", "7", "ASDF", "    000    ", "fooBAR"},
+			query:    "fooBAR",
+			numSteps: 2,
 		},
 		"short node": {
-			items: []string{"aaaaaaa1", "aaaa2", "aaaaaaaaaaaaab", "C"},
-			query: "aaaaaaaaaaaaab",
+			items:    []string{"aaaaaaa1", "aaaa2", "aaaaaaaaaaaaab", "C"},
+			query:    "aaaaaaaaaaaaab",
+			numSteps: 5,
 		},
 	}
 
@@ -52,8 +55,8 @@ func TestEthTrie(t *testing.T) {
 			if string(val) != tc.query {
 				t.Fatalf("invalid value: %s", string(val))
 			}
-			if len(path) < 2 {
-				t.Fatalf("Unexpected path length %d", len(path))
+			if len(path) != tc.numSteps {
+				t.Fatalf("Unexpected path length %d (expected %d)", len(path), tc.numSteps)
 			}
 			for _, p := range path {
 				fmt.Printf("-> %s\n", p)
