@@ -14,6 +14,7 @@ func TestEthTrie(t *testing.T) {
 		items    []string
 		query    string
 		numSteps int
+		isError  bool
 	}{
 		"two levels": {
 			items:    []string{"a", "B", "7", "ASDF", "    000    ", "fooBAR"},
@@ -24,6 +25,11 @@ func TestEthTrie(t *testing.T) {
 			items:    []string{"aaaaaaa1", "aaaa2", "aaaaaaaaaaaaab", "C"},
 			query:    "aaaaaaaaaaaaab",
 			numSteps: 5,
+		},
+		"invalid query": {
+			items:   []string{"aaaaaaa1", "aaaa2", "aaaaaaaaaaaaab", "C"},
+			query:   "aaaaaaaaaa",
+			isError: true,
 		},
 	}
 
@@ -49,6 +55,13 @@ func TestEthTrie(t *testing.T) {
 			}
 
 			val, path, err := ComputeProof(tr, []byte(tc.query))
+			if tc.isError {
+				if err == nil {
+					t.Fatalf("Expected error, but was <nil>")
+				}
+				return
+			}
+
 			if err != nil {
 				t.Fatalf("Error: %+v", err)
 			}
