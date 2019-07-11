@@ -16,20 +16,29 @@ func TestEthTrie(t *testing.T) {
 	}
 	t.Logf("empty trie root hash: %x", tr.Root())
 
-	items := []string{"a", "b", "c"}
+	items := []string{"a", "B", "7", "ASDF", "    000    ", "fooBAR"}
 
 	for _, s := range items {
 		b := []byte(s)
 		tr.Update(b, b) // key == value
-		if err := tr.Prove(b, 0, db); err != nil {
-			t.Fatalf("cannot prove %q: %s", s, err)
-		}
 	}
 
 	if hash, err := tr.Commit(nil); err != nil {
 		t.Fatalf("cannot commit: %s", err)
 	} else {
-		t.Logf("commit hash of the trie: %x", hash)
+		t.Logf("commit hash of the trie: %X", hash)
+	}
+
+	k := "fooBAR"
+	val, path, err := ComputeProof(tr, []byte(k))
+	if err != nil {
+		t.Fatalf("Error: %+v", err)
+	}
+	if string(val) != k {
+		t.Fatalf("invalid value: %s", string(val))
+	}
+	if len(path) != 2 {
+		t.Fatalf("Unexpected path length")
 	}
 
 	//for _, s := range items {
@@ -41,22 +50,21 @@ func TestEthTrie(t *testing.T) {
 	//	t.Logf("value of the key %q: %q", s, val)
 	//}
 
-	it := tr.NodeIterator(nil)
-	for {
-		if err := it.Error(); err != nil {
-			t.Fatalf("iterator failed: %s", err)
-		}
+	// it := tr.NodeIterator(nil)
+	// for {
+	// 	if err := it.Error(); err != nil {
+	// 		t.Fatalf("iterator failed: %s", err)
+	// 	}
 
-		if it.Leaf() {
-			for i, p := range it.LeafProof() {
-				t.Logf("%x: leaf %q proof: %2d %x", it.Path(), it.LeafKey(), i, p)
-			}
-		}
-		t.Logf("%x: node hash: %x", it.Path(), it.Hash())
+	// 	if it.Leaf() {
+	// 		for i, p := range it.LeafProof() {
+	// 			t.Logf("%x: leaf %q proof: %2d %x", it.Path(), it.LeafKey(), i, p)
+	// 		}
+	// 	}
+	// 	t.Logf("%x: node hash: %x", it.Path(), it.Hash())
 
-		if !it.Next(true) {
-			break
-		}
-	}
-
+	// 	if !it.Next(true) {
+	// 		break
+	// 	}
+	// }
 }
