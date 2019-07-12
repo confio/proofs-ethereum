@@ -2,11 +2,11 @@ package proof
 
 import (
 	"fmt"
+	"hash"
 
 	"github.com/ethereum/go-ethereum/rlp"
+	"golang.org/x/crypto/sha3"
 )
-
-var hshr = newHasher(0, 0, nil)
 
 func hashAnyNode(n node) []byte {
 	switch tn := n.(type) {
@@ -36,7 +36,7 @@ func hashShortNode(n *shortNode) []byte {
 	if err != nil {
 		panic("encode error: " + err.Error())
 	}
-	hash := hshr.makeHashNode(bz)
+	hash := makeHashNode(bz)
 
 	fmt.Printf("ShortNode: %s\n", n)
 	fmt.Printf("Encoded: %X\n", bz)
@@ -72,7 +72,7 @@ func hashFullNode(n *fullNode) []byte {
 	if err != nil {
 		panic("encode error: " + err.Error())
 	}
-	hash := hshr.makeHashNode(bz)
+	hash := makeHashNode(bz)
 
 	fmt.Printf("FullNode: %s\n", n)
 	fmt.Printf("Encoded: %X\n", bz)
@@ -80,11 +80,20 @@ func hashFullNode(n *fullNode) []byte {
 	return hash
 }
 
-// try to copy the ethereum code to get anything working
-func ethHashFullNode(n *fullNode) []byte {
-	h, _, err := hshr.hash(n, nil, false)
-	if err != nil {
-		panic(err)
-	}
-	return h.(hashNode)
+/** pulled in from ethereum trie/hasher.go **/
+
+// keccak wraps sha3.state. In addition to the usual hash methods, it also supports
+// Read to get a variable amount of data from the hash state. Read is faster than Sum
+// because it doesn't copy the internal state, but also modifies the internal state.
+type keccak interface {
+	hash.Hash
+	Read([]byte) (int, error)
+}
+
+func makeHashNode(data []byte) hashNode {
+	h := sha3.NewLegacyKeccak256().(keccak)
+	n := make(hashNode, h.Size())
+	h.Write(data)
+	h.Read(n)
+	return n
 }
