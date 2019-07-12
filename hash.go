@@ -8,6 +8,23 @@ import (
 
 var hshr = newHasher(0, 0, nil)
 
+func hashAnyNode(n node) []byte {
+	switch tn := n.(type) {
+	case *fullNode:
+		return hashFullNode(tn)
+	case *shortNode:
+		return hashShortNode(tn)
+	case valueNode:
+		// Is this good?
+		return tn
+	case hashNode:
+		// Is this good?
+		return tn
+	default:
+		panic("this cannot be")
+	}
+}
+
 func collapseShortNode(n *shortNode) *shortNode {
 	collapsed := n.copy()
 	collapsed.Key = hexToCompact(n.Key)
@@ -15,10 +32,6 @@ func collapseShortNode(n *shortNode) *shortNode {
 }
 
 func hashShortNode(n *shortNode) []byte {
-	if _, ok := n.Val.(valueNode); !ok {
-		panic("only implemented for value nodes")
-	}
-
 	bz, err := rlp.EncodeToBytes(collapseShortNode(n))
 	if err != nil {
 		panic("encode error: " + err.Error())

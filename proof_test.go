@@ -74,7 +74,8 @@ func TestEthTrie(t *testing.T) {
 				tr.Update(b, b) // key == value
 			}
 
-			if hash, err := tr.Commit(nil); err != nil {
+			hash, err := tr.Commit(nil)
+			if err != nil {
 				t.Fatalf("cannot commit: %s", err)
 			} else {
 				t.Logf("commit hash of the trie: %X", hash)
@@ -107,6 +108,12 @@ func TestEthTrie(t *testing.T) {
 			recovered := proof.RecoverKey()
 			if string(recovered) != tc.query {
 				t.Fatalf("Recovered key %s doesn't match query %s\n", string(recovered), tc.query)
+			}
+
+			// see if we can verify this proof
+			err = VerifyProof(proof, hash)
+			if err != nil {
+				t.Fatalf("Invalid proof %+v", err)
 			}
 		})
 
