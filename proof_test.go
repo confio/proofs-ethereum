@@ -1,6 +1,10 @@
 package proof
 
 import (
+	"bytes"
+	"fmt"
+	// predictable "random" is good for testing :)
+	"math/rand"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -118,5 +122,80 @@ func TestEthTrie(t *testing.T) {
 		})
 
 	}
+}
 
+// TestRandomTrie is basically a fuzz-tester
+// If there is an error, it should dump out enough info to create a targetted case above
+func TestRandomTries(t *testing.T) {
+	runs := 20
+	size := 5000
+
+	for i := 0; i<runs; i++ {
+		t.Run(fmt.Sprintf("Run %d", i), func (t *testing.T) {
+			tr, keys := randomTrie(t, size)
+			// grab one of the last ones (random) to query
+			query := keys[len(keys)-3]
+
+			proof, err := ComputeProof(tr, query.k)
+			if err != nil {
+				t.Fatalf("ComputeProof: %+v", err)
+			}
+			t.Logf("Path length %d", len(proof.Steps))
+			if !bytes.Equal(query.v, proof.Value) {
+				t.Fatalf("invalid value: %X (expected %X)", proof.Value, query.v)
+			}
+
+			recovered := proof.RecoverKey()
+			if !bytes.Equal(query.k, recovered) {
+				t.Fatalf("Recovered key %X doesn't match query %X\n", recovered, query.k)
+			}
+
+			err = VerifyProof(proof, tr.Hash())
+			if err != nil {
+				t.Fatalf("Invalid proof %+v", err)
+			}
+		})
+	}
+}
+
+type kv struct {
+	k []byte
+	v []byte
+}
+
+func randomTrie(t *testing.T, n int) (*trie.Trie, []kv) {
+	db := ethdb.NewMemDatabase()
+	tr, err := trie.New(common.BytesToHash(nil), trie.NewDatabase(db))
+	if err != nil {
+		t.Fatalf("cannot create an empty trie: %s", err)
+	}
+
+	var vals []kv
+	for i := byte(0); i < 100; i++ {
+		value := kv{k: common.LeftPadBytes([]byte{i}, 32), v: []byte{i}}
+		tr.Update(value.k, value.v)
+
+		value2 := kv{k: common.LeftPadBytes([]byte{i + 10}, 32), v: []byte{i}}
+		tr.Update(value2.k, value2.v)
+
+		vals = append(vals, value, value2)
+	}
+	for i := 0; i < n; i++ {
+		value := kv{k: randBytes(32), v: randBytes(20)}
+		tr.Update(value.k, value.v)
+		vals = append(vals, value)
+	}
+
+	_, err = tr.Commit(nil)
+	if err != nil {
+		t.Fatalf("cannot commit: %s", err)
+	}
+
+	return tr, vals
+}
+
+func randBytes(n int) []byte {
+	r := make([]byte, n)
+	rand.Read(r)
+	return r
 }
