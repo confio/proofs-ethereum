@@ -36,11 +36,10 @@ func TestHashShortNode(t *testing.T) {
 }
 
 func TestHashFullNode(t *testing.T) {
-	// shortNodeValue("ooBAR", "fooBAR") ??
-	six := &shortNode{
-		Key: fromHex(t, "060f060f04020401050210"),
-		Val: valueNode(fromHex(t, "666f6f424152")),
-	}
+	// six := &shortNode{
+	// 	Key: fromHex(t, "060f060f04020401050210"),
+	// 	Val: valueNode(fromHex(t, "666f6f424152")),
+	// }
 
 	cases := map[string]struct {
 		node   *fullNode
@@ -52,14 +51,31 @@ func TestHashFullNode(t *testing.T) {
 		//       0: <nil> 1: {10: 61 } 2: <nil> 3: <nil> 4: <nil> 5: <nil> 6: {060f060f04020401050210: 666f6f424152 } 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil>
 		//     ]
 		"with shortnodes": {
-			node:   sparseFullNode(kids{1: shortNodeValue("", "a"), 6: six}),
+			node:   sparseFullNode(kids{1: shortNodeValue("", "a"), 6: shortNodeValue("ooBAR", "fooBAR")}),
 			expect: fromHex(t, "D9BF67E4B6DD1D92FF614D619D14E6D2AE301098FDA55949BE5E1BDAD26383EE"),
+		},
+		// From: go test -v . -run TestEthTrie/embeded_full_node
+		// proof_test.go:95: -> A18F94B41AC5C5E3D4960A90DDEB9E7426FD79783F6217DC20EB0D06BB472246
+		// proof_test.go:96: ---> (6) [
+		//       0: <nil> 1: <nil> 2: <nil> 3: <nil> 4: [
+		//         0: <nil> 1: {10: 41 } 2: {10: 42 } 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil>
+		//       ] 5: <nil> 6: [
+		//         0: <nil> 1: {10: 61 } 2: {10: 62 } 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil>
+		//       ] 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil>
+		//     ]
+		"embedded fullnode": {
+			node: sparseFullNode(kids{
+				4: sparseFullNode(kids{1: shortNodeValue("", "A"), 2: shortNodeValue("", "B")}),
+				6: sparseFullNode(kids{1: shortNodeValue("", "a"), 2: shortNodeValue("", "b")}),
+			}),
+			expect: fromHex(t, "A18F94B41AC5C5E3D4960A90DDEB9E7426FD79783F6217DC20EB0D06BB472246"),
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			hash := hashFullNode(tc.node)
+			// hash := ethHashFullNode(tc.node)
 			if !bytes.Equal(tc.expect, hash[:]) {
 				t.Fatalf("Expected %X\n     Got %X", tc.expect, hash[:])
 			}

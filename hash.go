@@ -39,21 +39,23 @@ func hashShortNode(n *shortNode) []byte {
 	return hash
 }
 
-func hashFullNode(n *fullNode) []byte {
-	// this is pre-processing
+func collapseFullNode(n *fullNode) *fullNode {
 	collapsed := n.copy()
 	for i := 0; i < 16; i++ {
 		switch child := collapsed.Children[i].(type) {
 		case *shortNode:
 			collapsed.Children[i] = collapseShortNode(child)
 		case *fullNode:
-			collapsed.Children[i] = hashNode(hashFullNode(child))
+			collapsed.Children[i] = collapseFullNode(child)
 			// leave valueNode and hashNode (or reference) untouched
 		}
 	}
+	return collapsed
+}
 
+func hashFullNode(n *fullNode) []byte {
 	// this is encoding process
-	bz, err := rlp.EncodeToBytes(collapsed)
+	bz, err := rlp.EncodeToBytes(collapseFullNode(n))
 	if err != nil {
 		panic("encode error: " + err.Error())
 	}
