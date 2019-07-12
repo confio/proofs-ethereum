@@ -38,6 +38,11 @@ func TestEthTrie(t *testing.T) {
 			query:    "A",
 			numSteps: 2,
 		},
+		"only short node": {
+			items:    []string{"1"},
+			query:    "1",
+			numSteps: 1,
+		},
 		"invalid query": {
 			items:   []string{"aaaaaaa1", "aaaa2", "aaaaaaaaaaaaab", "C"},
 			query:   "aaaaaaaaaa",
