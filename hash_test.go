@@ -70,6 +70,34 @@ func TestHashFullNode(t *testing.T) {
 			}),
 			expect: fromHex(t, "A18F94B41AC5C5E3D4960A90DDEB9E7426FD79783F6217DC20EB0D06BB472246"),
 		},
+		// TestEthTrie/ends_with_value_node
+		// proof_test.go:95: -> C43EE591D2EF0F00C6CD919F545E74E3AF65E0B9C24971D9B2C5A85D69FC3A7C
+		// proof_test.go:96: ---> (4) [
+		//       0: <nil> 1: <nil> 2: <nil> 3: <nil> 4: <40ce5b8ec04c2b4b135ed7f0c8e42f36af377f7c75b4fa3283e8ab2a95d8a88f> 5: <nil> 6: [
+		//         0: <nil> 1: {10: 61 } 2: {10: 62 } 3: <nil> 4: <nil> 5: <nil> 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil>
+		//       ] 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil>
+		//     ]
+		"inner full node": {
+			node: sparseFullNode(kids{
+				4: hashNode(fromHex(t, "40ce5b8ec04c2b4b135ed7f0c8e42f36af377f7c75b4fa3283e8ab2a95d8a88f")),
+				6: sparseFullNode(kids{1: shortNodeValue("", "a"), 2: shortNodeValue("", "b")}),
+			}),
+			expect: fromHex(t, "C43EE591D2EF0F00C6CD919F545E74E3AF65E0B9C24971D9B2C5A85D69FC3A7C"),
+		},
+		// proof_test.go:95: -> 40CE5B8EC04C2B4B135ED7F0C8E42F36AF377F7C75B4FA3283E8AB2A95D8A88F
+		// proof_test.go:96: ---> (1) [
+		//       0: <nil> 1: {10: 41 } 2: <27f91a1c3a6df630ec54febc2c39dbaac65f4985d3ffa4c0dd78bf870c95c96d> 3: {04040505040804090505040804090505040810: 43445548495548495548 } 4: {040a040f0409040f040904080406050710: 444a4f494f49484657 } 5: {04080406040b040804050408040f04080507040f0408040610: 4548464b4845484f48574f4846 } 6: <nil> 7: <nil> 8: <nil> 9: <nil> a: <nil> b: <nil> c: <nil> d: <nil> e: <nil> f: <nil> [17]: <nil>
+		//     ]
+		"inner full node 2": {
+			node: sparseFullNode(kids{
+				1: shortNodeValue("", "A"),
+				2: hashNode(fromHex(t, "27f91a1c3a6df630ec54febc2c39dbaac65f4985d3ffa4c0dd78bf870c95c96d")),
+				3: shortNodeHex(t, "04040505040804090505040804090505040810", "43445548495548495548"),
+				4: shortNodeHex(t, "040a040f0409040f040904080406050710", "444a4f494f49484657"),
+				5: shortNodeHex(t, "04080406040b040804050408040f04080507040f0408040610", "4548464b4845484f48574f4846"),
+			}),
+			expect: fromHex(t, "40CE5B8EC04C2B4B135ED7F0C8E42F36AF377F7C75B4FA3283E8AB2A95D8A88F"),
+		},
 	}
 
 	for name, tc := range cases {
@@ -91,6 +119,13 @@ func sparseFullNode(children kids) *fullNode {
 		fn.Children[idx] = child
 	}
 	return &fn
+}
+
+func shortNodeHex(t *testing.T, hkey, hval string) *shortNode {
+	return &shortNode{
+		Key: fromHex(t, hkey),
+		Val: valueNode(fromHex(t, hval)),
+	}
 }
 
 func shortNodeValue(key, value string) *shortNode {
