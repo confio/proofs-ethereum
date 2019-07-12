@@ -16,7 +16,7 @@ type PathStep interface {
 func (fullNode) isPathStep()  {}
 func (shortNode) isPathStep() {}
 
-// Link seems like ir can also be full/short node???
+// Link seems like it can also be full/short node???
 // I only see hash/value Node in tests
 type Link interface {
 	node
