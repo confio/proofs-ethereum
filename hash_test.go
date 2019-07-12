@@ -4,7 +4,35 @@ import (
 	"bytes"
 	"encoding/hex"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/rlp"
 )
+
+func TestPreimage(t *testing.T) {
+	cases := map[string]struct {
+		node *shortNode
+	}{
+		"val": {node: shortNodeHex(t, "04040505040804090505040804090505040810", "43445548495548495548")},
+		"ref": {node: shortNodeRefHex(t, "04040505040804090505040804090505040810", "43445548495548495548")},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Logf("Orginal: %s", tc.node)
+			bz, err := rlp.EncodeToBytes(collapseShortNode(tc.node))
+			if err != nil {
+				t.Fatalf("Encoding: %+v", err)
+			}
+			t.Logf("Encoded: %X", bz)
+			decoded, err := decodeNode(nil, bz, 0)
+			if err != nil {
+				t.Fatalf("Decoding: %+v", err)
+			}
+			t.Logf("Parsed: %s", decoded)
+		})
+	}
+
+}
 
 func TestHashShortNode(t *testing.T) {
 	cases := map[string]struct {
@@ -125,6 +153,13 @@ func shortNodeHex(t *testing.T, hkey, hval string) *shortNode {
 	return &shortNode{
 		Key: fromHex(t, hkey),
 		Val: valueNode(fromHex(t, hval)),
+	}
+}
+
+func shortNodeRefHex(t *testing.T, hkey, hval string) *shortNode {
+	return &shortNode{
+		Key: fromHex(t, hkey),
+		Val: hashNode(fromHex(t, hval)),
 	}
 }
 

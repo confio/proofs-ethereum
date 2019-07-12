@@ -40,6 +40,8 @@ func hashShortNode(n *shortNode) []byte {
 
 	fmt.Printf("ShortNode: %s\n", n)
 	fmt.Printf("Encoded: %X\n", bz)
+	// https://github.com/ethereum/wiki/wiki/RLP
+
 	// Notes from encoding: 1 byte string is encoded without prefix, longer as 0x80 + N where N is length (for > 127???)
 	// Node: {030110: 31 }
 	// Encoded: C482203131
