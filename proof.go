@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -16,8 +17,9 @@ type PathStep interface {
 func (fullNode) isPathStep()  {}
 func (shortNode) isPathStep() {}
 
-// Link seems like it can also be full/short node???
-// I only see hash/value Node in tests
+// Link in intermediate instances is a hashNode (reference to next step)
+// At the end, it is often shortNode(valueNode) to capture all remaining key (or key = 16 for direct value)
+// Sometimes this is an embedded fullnode if there is little data
 type Link interface {
 	node
 }
@@ -69,7 +71,7 @@ func ComputeProof(tr *trie.Trie, key []byte) (*Proof, error) {
 		return nil, err
 	}
 
-	proof, err := BuildProof(key, value, record.Path())
+	proof, err := buildProof(key, value, record.Path())
 	if err != nil {
 		return nil, err
 	}
@@ -77,8 +79,27 @@ func ComputeProof(tr *trie.Trie, key []byte) (*Proof, error) {
 	return proof, nil
 }
 
-// BuildProof annotates the path of proofs, with the child we followed at each step
-func BuildProof(key, value []byte, path []Step) (*Proof, error) {
+func VerifyProof(proof *Proof, rootHash common.Hash) error {
+	// let's make sure this is consistent with the claim - key and value should match
+	recovered := proof.RecoverKey()
+	if !bytes.Equal(recovered, proof.Key) {
+		return fmt.Errorf("Proof.Key doesn't match key recovered from the steps")
+	}
+
+	// TODO: grab value and hexremainer from the last step
+
+	// first approach: let's go from top to bottom validating the hash matches expectations at each step
+	// expected := rootHash[:]
+	// for _, step := range proof.Steps {
+	// 	// calculate hash of this level, make sure it is expected
+
+	// 	// find hash of next link and set expected
+	// }
+	return nil
+}
+
+// buildProof annotates the path of proofs, with the child we followed at each step
+func buildProof(key, value []byte, path []Step) (*Proof, error) {
 	hexkey := keybytesToHex(key)
 	fmt.Printf("hexkey: %X (%s)\n", hexkey, string(key))
 
@@ -100,6 +121,11 @@ func BuildProof(key, value []byte, path []Step) (*Proof, error) {
 			return nil, fmt.Errorf("Unknown type: %T", p)
 		}
 	}
+
+	// let's do a sanity check here (for me understanding)
+	// if hexkey is empty, last ref is a valueNode
+	// if it is non-empty, last ref is a shortNode with Key=hexkey, ref to valueNode
+	// in both cases, the valueNode should contain value
 
 	proof := Proof{
 		Steps:        path,

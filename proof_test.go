@@ -25,6 +25,19 @@ func TestEthTrie(t *testing.T) {
 			query:    "aaaaaaaaaaaaab",
 			numSteps: 5,
 		},
+		"embeded full node": {
+			// bytes 41, 42, 61, 62 (full node include full node with value refs)
+			items:    []string{"a", "b", "A", "B"},
+			query:    "a",
+			numSteps: 1,
+		},
+		"ends with value node": {
+			// bytes 41, 42, 61, 62 first nibble fullnode, follow 4x leads to lots of data, so A is value node
+			// correction - we only get shortnode with key = 16 to repr value node
+			items:    []string{"a", "b", "A", "BBB", "CDUHIUHIUH", "DJOIOIHFW", "EHFKHEHOHWOHF", "BDED"},
+			query:    "A",
+			numSteps: 2,
+		},
 		"invalid query": {
 			items:   []string{"aaaaaaa1", "aaaa2", "aaaaaaaaaaaaab", "C"},
 			query:   "aaaaaaaaaa",
