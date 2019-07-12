@@ -119,6 +119,19 @@ func TestEthTrie(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Invalid proof %+v", err)
 			}
+
+			ref, err := ConvertProof(proof) 
+			if err != nil {
+				t.Fatalf("Cannot convert %+v", err)
+			}
+			calc, err := ref.Calculate()
+			if err != nil {
+				t.Fatalf("Cannot calculated converted root %+v", err)
+			}
+			if !bytes.Equal(hash[:], calc) {
+				t.Fatalf("Root hash is %X\nConfio calculated %X", hash, calc)
+			}
+
 		})
 
 	}
