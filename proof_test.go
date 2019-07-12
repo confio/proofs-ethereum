@@ -64,7 +64,8 @@ func TestEthTrie(t *testing.T) {
 				t.Fatalf("Error: %+v", err)
 			}
 			for _, p := range proof.Steps {
-				t.Logf("-> (%d) %s\n", p.Index, p.Step)
+				t.Logf("-> %X\n", p.Hash)
+				t.Logf("---> (%d) %s\n", p.Index, p.Step)
 			}
 
 			val := string(proof.Value)

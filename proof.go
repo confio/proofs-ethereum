@@ -16,7 +16,7 @@ type PathStep interface {
 func (fullNode) isPathStep()  {}
 func (shortNode) isPathStep() {}
 
-// Seems like this can also be full/short node???
+// Link seems like ir can also be full/short node???
 // I only see hash/value Node in tests
 type Link interface {
 	node
@@ -27,6 +27,8 @@ type Step struct {
 	Step PathStep
 	// Index is set if Step is FullNode and refers to which subnode we followed
 	Index int
+	// Hash is set to the expected hash of this level
+	Hash []byte
 }
 
 type Proof struct {
@@ -67,57 +69,51 @@ func ComputeProof(tr *trie.Trie, key []byte) (*Proof, error) {
 		return nil, err
 	}
 
-	steps, remainder, err := AnnotatePath(key, record.Path())
+	proof, err := BuildProof(key, value, record.Path())
 	if err != nil {
 		return nil, err
 	}
 
+	return proof, nil
+}
+
+// BuildProof annotates the path of proofs, with the child we followed at each step
+func BuildProof(key, value []byte, path []Step) (*Proof, error) {
+	hexkey := keybytesToHex(key)
+	fmt.Printf("hexkey: %X (%s)\n", hexkey, string(key))
+
+	for i, p := range path {
+		switch t := p.Step.(type) {
+		case *shortNode:
+			// remove the prefix and continue
+			if len(hexkey) < len(t.Key) || !bytes.Equal(t.Key, hexkey[:len(t.Key)]) {
+				return nil, fmt.Errorf("Shortnode prefix %X doesn't match key %X", t.Key, hexkey)
+			}
+			fmt.Printf("short: %X\n", t.Key)
+			hexkey = hexkey[len(t.Key):]
+		case *fullNode:
+			fmt.Printf("next: %X\n", hexkey[0])
+			idx := int(hexkey[0])
+			hexkey = hexkey[1:]
+			path[i].Index = idx
+		default:
+			return nil, fmt.Errorf("Unknown type: %T", p)
+		}
+	}
+
 	proof := Proof{
-		Steps:        steps,
+		Steps:        path,
 		Key:          key,
 		Value:        value,
-		HexRemainder: remainder,
+		HexRemainder: hexkey,
 	}
 
 	return &proof, nil
 }
 
-// AnnotatePath annotates the path of proofs, with the child we followed at each step
-func AnnotatePath(key []byte, path []PathStep) ([]Step, []byte, error) {
-	hexkey := keybytesToHex(key)
-	fmt.Printf("hexkey: %X (%s)\n", hexkey, string(key))
-	var steps []Step
-
-	for _, p := range path {
-		switch t := p.(type) {
-		case *shortNode:
-			// remove the prefix and continue
-			if len(hexkey) < len(t.Key) || !bytes.Equal(t.Key, hexkey[:len(t.Key)]) {
-				return nil, nil, fmt.Errorf("Shortnode prefix %X doesn't match key %X", t.Key, hexkey)
-			}
-			fmt.Printf("short: %X\n", t.Key)
-			hexkey = hexkey[len(t.Key):]
-			steps = append(steps, Step{Step: p})
-		case *fullNode:
-			fmt.Printf("next: %X\n", hexkey[0])
-			idx := int(hexkey[0])
-			hexkey = hexkey[1:]
-			steps = append(steps, Step{Step: p, Index: idx})
-		default:
-			return nil, nil, fmt.Errorf("Unknown type: %T", p)
-		}
-	}
-
-	// if len(hexkey) != 0 {
-	// 	return nil, fmt.Errorf("Complete annotation, but path remains: %X", hexkey)
-	// }
-
-	return steps, hexkey, nil
-}
-
 // ProofRecorder is used to help us grab proofs
 type ProofRecorder struct {
-	path []PathStep
+	path []Step
 }
 
 var _ ethdb.Putter = (*ProofRecorder)(nil)
@@ -127,10 +123,10 @@ func (p *ProofRecorder) Put(hash, value []byte) error {
 	if err != nil {
 		return err
 	}
-	p.path = append(p.path, step)
+	p.path = append(p.path, Step{Step: step, Hash: hash})
 	return nil
 }
 
-func (p *ProofRecorder) Path() []PathStep {
+func (p *ProofRecorder) Path() []Step {
 	return p.path
 }
