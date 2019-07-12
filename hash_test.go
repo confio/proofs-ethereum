@@ -12,8 +12,16 @@ func TestHashShortNode(t *testing.T) {
 		expect []byte
 	}{
 		"simple value": {
-			node:   &shortNode{Key: []byte{3, 1, 0x10}, Val: valueNode{0x31}},
+			node:   &shortNode{Key: toKey("1"), Val: valueNode("1")},
 			expect: fromHex(t, "0FF8F6CCAB8202455F6C51C66FB2436B3009D0E3BA58225CFDAEE4CC973D8FF2"),
+		},
+		"longer value": {
+			node:   &shortNode{Key: toKey("fooled"), Val: valueNode("fooled")},
+			expect: fromHex(t, "F4CE6E6AE7FE32D3748FD8BBD8B7CE8355992C328757E99C4BB81E3BEA989D88"),
+		},
+		"longest value": {
+			node:   &shortNode{Key: toKey("more than 16 bytes here..."), Val: valueNode("more than 16 bytes here...")},
+			expect: fromHex(t, "E66333E75B4D83C31F0EDE8B9FF73455EA656D6C95A74D6134027F3F2E8803EE"),
 		},
 	}
 
@@ -25,6 +33,10 @@ func TestHashShortNode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func toKey(key string) []byte {
+	return keybytesToHex([]byte(key))
 }
 
 func fromHex(t testing.TB, hexstr string) []byte {

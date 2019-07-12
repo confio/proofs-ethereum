@@ -1,11 +1,14 @@
 package proof
 
-import "github.com/ethereum/go-ethereum/rlp"
+import (
+	"fmt"
+
+	"github.com/ethereum/go-ethereum/rlp"
+)
+
+var hshr = newHasher(0, 0, nil)
 
 func hashShortNode(n *shortNode) []byte {
-	h := newHasher(0, 0, nil)
-	// h.tmp.Reset()
-
 	if _, ok := n.Val.(valueNode); !ok {
 		panic("only implemented for value nodes")
 	}
@@ -13,9 +16,21 @@ func hashShortNode(n *shortNode) []byte {
 	collapsed := n.copy()
 	collapsed.Key = hexToCompact(n.Key)
 
-	if err := rlp.Encode(&h.tmp, collapsed); err != nil {
+	bz, err := rlp.EncodeToBytes(collapsed)
+	if err != nil {
 		panic("encode error: " + err.Error())
 	}
-	hash := h.makeHashNode(h.tmp)
+	fmt.Printf("Node: %s\n", n)
+	fmt.Printf("Encoded: %X\n", bz)
+	// Notes from encoding: 1 byte string is encoded without prefix, longer as 0x80 + N where N is length (for > 127???)
+	// Node: {030110: 31 }
+	// Encoded: C482203131
+	// C4 some type info? 82 - 2 byte string / 2031 - compact key / 31  unprefixed one byte string
+
+	// Node: {0606060f060f060c0605060410: 666f6f6c6564 }
+	// Encoded: CF8720666F6F6C656486666F6F6C6564
+	// CF some type info? 87 - 7 byte string / 20666F6F6C6564 - compact key (0x20 + string) / 86 - 6 byte string / 666F6F6C6564 value
+
+	hash := hshr.makeHashNode(bz)
 	return hash
 }

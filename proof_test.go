@@ -43,6 +43,16 @@ func TestEthTrie(t *testing.T) {
 			query:    "1",
 			numSteps: 1,
 		},
+		"longer short node": {
+			items:    []string{"fooled"},
+			query:    "fooled",
+			numSteps: 1,
+		},
+		"longest short node": {
+			items:    []string{"more than 16 bytes here..."},
+			query:    "more than 16 bytes here...",
+			numSteps: 1,
+		},
 		"invalid query": {
 			items:   []string{"aaaaaaa1", "aaaa2", "aaaaaaaaaaaaab", "C"},
 			query:   "aaaaaaaaaa",
