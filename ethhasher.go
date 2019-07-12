@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package proofs
+package proof
 
 import (
 	"hash"
@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -30,7 +31,7 @@ type hasher struct {
 	sha        keccakState
 	cachegen   uint16
 	cachelimit uint16
-	onleaf     LeafCallback
+	onleaf     trie.LeafCallback
 }
 
 // keccakState wraps sha3.state. In addition to the usual hash methods, it also supports
@@ -62,7 +63,7 @@ var hasherPool = sync.Pool{
 	},
 }
 
-func newHasher(cachegen, cachelimit uint16, onleaf LeafCallback) *hasher {
+func newHasher(cachegen, cachelimit uint16, onleaf trie.LeafCallback) *hasher {
 	h := hasherPool.Get().(*hasher)
 	h.cachegen, h.cachelimit, h.onleaf = cachegen, cachelimit, onleaf
 	return h
@@ -74,16 +75,13 @@ func returnHasherToPool(h *hasher) {
 
 // hash collapses a node down into a hash node, also returning a copy of the
 // original node initialized with the computed hash to replace the original one.
-func (h *hasher) hash(n node, db *Database, force bool) (node, node, error) {
+func (h *hasher) hash(n node, db *trie.Database, force bool) (node, node, error) {
 	// If we're not storing the node, just hashing, use available cached data
 	if hash, dirty := n.cache(); hash != nil {
 		if db == nil {
 			return hash, n, nil
 		}
 		if n.canUnload(h.cachegen, h.cachelimit) {
-			// Unload the node from cache. All of its subnodes will have a lower or equal
-			// cache generation number.
-			cacheUnloadCounter.Inc(1)
 			return hash, hash, nil
 		}
 		if !dirty {
@@ -121,7 +119,7 @@ func (h *hasher) hash(n node, db *Database, force bool) (node, node, error) {
 // hashChildren replaces the children of a node with their hashes if the encoded
 // size of the child is larger than a hash, returning the collapsed node as well
 // as a replacement for the original node with the child hashes cached in.
-func (h *hasher) hashChildren(original node, db *Database) (node, node, error) {
+func (h *hasher) hashChildren(original node, db *trie.Database) (node, node, error) {
 	var err error
 
 	switch n := original.(type) {
@@ -163,7 +161,7 @@ func (h *hasher) hashChildren(original node, db *Database) (node, node, error) {
 // store hashes the node n and if we have a storage layer specified, it writes
 // the key/value pair to it and tracks any node->child references as well as any
 // node->external trie references.
-func (h *hasher) store(n node, db *Database, force bool) (node, error) {
+func (h *hasher) store(n node, db *trie.Database, force bool) (node, error) {
 	// Don't store hashes or empty nodes.
 	if _, isHash := n.(hashNode); n == nil || isHash {
 		return n, nil
@@ -182,30 +180,6 @@ func (h *hasher) store(n node, db *Database, force bool) (node, error) {
 		hash = h.makeHashNode(h.tmp)
 	}
 
-	if db != nil {
-		// We are pooling the trie nodes into an intermediate memory cache
-		hash := common.BytesToHash(hash)
-
-		db.lock.Lock()
-		db.insert(hash, h.tmp, n)
-		db.lock.Unlock()
-
-		// Track external references from account->storage trie
-		if h.onleaf != nil {
-			switch n := n.(type) {
-			case *shortNode:
-				if child, ok := n.Val.(valueNode); ok {
-					h.onleaf(child, hash)
-				}
-			case *fullNode:
-				for i := 0; i < 16; i++ {
-					if child, ok := n.Children[i].(valueNode); ok {
-						h.onleaf(child, hash)
-					}
-				}
-			}
-		}
-	}
 	return hash, nil
 }
 
