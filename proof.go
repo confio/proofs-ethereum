@@ -3,6 +3,7 @@ package proof
 import (
 	"bytes"
 	"fmt"
+	"log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -123,7 +124,7 @@ func VerifyProof(proof *Proof, rootHash common.Hash) error {
 // buildProof annotates the path of proofs, with the child we followed at each step
 func buildProof(key, value []byte, path []Step) (*Proof, error) {
 	hexkey := keybytesToHex(key)
-	fmt.Printf("hexkey: %X (%s)\n", hexkey, string(key))
+	log.Printf("hexkey: %X (%s)\n", hexkey, string(key))
 
 	for i, p := range path {
 		switch t := p.Step.(type) {

@@ -172,6 +172,7 @@ func toKey(key string) []byte {
 }
 
 func fromHex(t testing.TB, hexstr string) []byte {
+	t.Helper()
 	res, err := hex.DecodeString(hexstr)
 	if err != nil {
 		t.Fatalf("Cannot decode hex: %s", hexstr)
